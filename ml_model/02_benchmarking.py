@@ -25,8 +25,7 @@ class IsogenyClassifier(nn.Module):
         x = self.relu(self.fc3(x))
         return self.fc4(x)
 
-# --- CONFIGURATION DES CHEMINS (Mis à jour selon ta capture) ---
-# On utilise os.path.join pour éviter les erreurs de slash entre Windows et Linux
+# --- CONFIGURATION DES CHEMINS ---
 BASE_DIR = 'ml_model'
 MODEL_PATH = os.path.join(BASE_DIR, 'pytorch_model.pth')
 DATA_X_TEST = os.path.join(BASE_DIR, 'X_test.npy')
@@ -53,15 +52,18 @@ def run_benchmark():
     # 3. CHARGEMENT DU MODÈLE
     print(f"[2] Chargement du modèle PyTorch...")
     input_size = X_test.shape[1]
-    num_classes = 1000  # Nombre de nœuds cibles
     
+    # --- LIGNE CORRIGÉE ICI ---
+    num_classes = 1001  
+    # --------------------------
+
     model = IsogenyClassifier(input_size, num_classes)
     model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device('cpu')))
     model.eval()
 
     # 4. MESURE VITESSE IA
     print(f"[3] Test de vitesse sur {len(X_test)} prédictions...")
-    start_time = time.perf_counter() # Plus précis que time.time()
+    start_time = time.perf_counter()
 
     with torch.no_grad():
         outputs = model(X_test_tensor)
@@ -73,8 +75,6 @@ def run_benchmark():
     avg_ia_time_ms = (total_ia_time / len(X_test)) * 1000
 
     # 5. SIMULATION VITESSE CLASSIQUE
-    # En cryptographie d'isogénies, un calcul classique est très lourd.
-    # On estime 150ms par opération pour les algorithmes de recherche standards.
     CLASSICAL_TIME_PER_OP_MS = 150.0 
     
     # 6. AFFICHAGE DES RÉSULTATS

@@ -1,16 +1,14 @@
 import pandas as pd
 
-# 1. Paramètres
-p = 12007 # Nombre premier (p = 3 mod 4 pour faciliter la supersingularité)
+# 1. Paramètres (p=12007 -> environ 1000 courbes supersingulières possibles)
+p = 12007 
 F2.<i> = GF(p^2, modulus=x^2+1)
 
-# Liste pour stocker nos résultats
 nodes_data = []
-curves_found = {} # Pour éviter les doublons via j-invariant
+curves_found = {} 
 queue = []
 
-# 2. Trouver la TOUTE PREMIÈRE courbe (La graine)
-# On cherche une courbe supersingulière de départ par balayage
+# 2. Recherche de la courbe "graine" (Seed)
 print("Recherche de la courbe de départ...")
 for a in range(1, p):
     E = EllipticCurve(F2, [a, 0])
@@ -20,37 +18,34 @@ for a in range(1, p):
         queue.append(E)
         break
 
-# 3. Exploration avec vérification mathématique à chaque pas
-
-while len(curves_found) < 1000 and queue:
+# 3. Exploration exhaustive du graphe (BFS)
+print("Début de l'exploration du graphe...")
+while queue:
     E_curr = queue.pop(0)
     
-    # On calcule les voisines (isogénies de degré 2)
     try:
+        # On utilise les isogénies de degré 2 (standard SIDH/SIKE)
         isogenies = E_curr.isogenies_prime_degree(2)
         
         for phi in isogenies:
             E_next = phi.codomain()
             j_next = E_next.j_invariant()
             
-            # CONDITION DOUBLE : Nouveau j-invariant ET certification mathématique
             if j_next not in curves_found:
-                if E_next.is_supersingular(): # <--- LA VÉRIFICATION QUE TU VOULAIS
+                # Vérification mathématique de supersingularité
+                if E_next.is_supersingular():
                     curves_found[j_next] = E_next
                     queue.append(E_next)
                     
                     if len(curves_found) % 100 == 0:
-                        print(f"nombre de courbes touvées : {len(curves_found)}/1000")
-            
-            if len(curves_found) >= 1000:
-                break
+                        print(f"Courbes trouvées : {len(curves_found)}")
     except:
         continue
 
-# 4. Transformation en Dataset pour l'IA
+# 4. Extraction des caractéristiques pour l'IA (Normalisation)
 for idx, (j, E) in enumerate(curves_found.items()):
     coeffs = j.list()
-    # On normalise pour ton partenaire (valeurs entre 0 et 1)
+    # j_real et j_imag normalisés entre 0 et 1 pour le modèle de Rayhana
     jr = float(coeffs[0]) / p
     ji = float(coeffs[1]) / p if len(coeffs) > 1 else 0.0
     
@@ -60,7 +55,9 @@ for idx, (j, E) in enumerate(curves_found.items()):
         "j_imag": ji
     })
 
-# 5. Sauvegarde
+# 5. Sauvegarde dans le dossier datasets
 df = pd.DataFrame(nodes_data)
 df.to_csv("../datasets/node_features.csv", index=False)
-print(f"Succès ! Dataset créé avec {len(nodes_data)} courbes supersingulières.")
+
+print(f"\n✅ Succès ! {len(nodes_data)} courbes extraites.")
+print(f"Fichier sauvegardé : datasets/node_features.csv")

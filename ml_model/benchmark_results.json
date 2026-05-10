@@ -1,7 +1,7 @@
 {
-    "samples": 1618,
-    "avg_ia_time_ms": 0.0040420890005526434,
+    "samples": 20000,
+    "avg_ia_time_ms": 0.0065219700001762256,
     "classical_time_ms": 150.0,
-    "speedup": 37109.52430277801,
-    "efficiency_gain_percent": 99.99730527399964
+    "speedup": 22999.185828200214,
+    "efficiency_gain_percent": 99.99565201999988
 }

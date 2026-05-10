@@ -1,46 +1,56 @@
 import pandas as pd
-import networkx as nx
+import random
 
-# 1. Configuration (Mêmes paramètres que pour tes nœuds)
+# 1. Configuration
 p = 12007 
 F2.<i> = GF(p^2, modulus=x^2+1)
 
-# Charger les nœuds existants pour connaître les j-invariants
+# Charger les nœuds
 df_nodes = pd.read_csv("../datasets/node_features.csv")
-
-# On crée un dictionnaire pour retrouver l'ID à partir du j-invariant
-# On multiplie par p car les données étaient normalisées (0-1)
 j_to_id = {}
+id_to_curve = {} # On stocke les courbes pour aller vite
+
+print("Chargement des courbes en mémoire...")
 for _, row in df_nodes.iterrows():
     jr = int(round(row["j_real"] * p))
     ji = int(round(row["j_imag"] * p))
     j_val = F2(jr + ji*i)
-    j_to_id[j_val] = int(row["node_id"])
+    id_start = int(row["node_id"])
+    j_to_id[j_val] = id_start
+    id_to_curve[id_start] = EllipticCurve_from_j(j_val)
 
-G = nx.Graph()
 edges_list = []
+target_count = 100000 # Ton objectif
 
-print("Construction du graphe par isogénies réelles...")
+print(f"Génération de {target_count} exemples de chemins (Random Walks)...")
 
-# 2. Parcourir chaque courbe et trouver ses voisines mathématiques
-for j_start, id_start in j_to_id.items():
+node_ids = list(id_to_curve.keys())
+
+while len(edges_list) < target_count:
+    # On choisit un point de départ au hasard
+    curr_id = random.choice(node_ids)
+    E = id_to_curve[curr_id]
+    
     try:
-        # On recrée la courbe à partir de son invariant j
-        E = EllipticCurve_from_j(j_start)
+        # On calcule les voisines (Degré 2 pour SIDH/SIKE)
+        isogenies = E.isogenies_prime_degree(2)
+        if not isogenies: continue
         
-        # On calcule les isogénies de degré 2 (les routes réelles)
-        for phi in E.isogenies_prime_degree(2):
-            j_next = phi.codomain().j_invariant()
+        # On simule un saut
+        phi = random.choice(isogenies)
+        j_next = phi.codomain().j_invariant()
+        
+        if j_next in j_to_id:
+            next_id = j_to_id[j_next]
             
-            # Si la voisine est dans notre dataset, on crée le lien
-            if j_next in j_to_id:
-                id_next = j_to_id[j_next]
-                if not G.has_edge(id_start, id_next):
-                    G.add_edge(id_start, id_next)
-                    edges_list.append({
-                        "source_node": id_start, 
-                        "target_node": id_next
-                    })
+            edges_list.append({
+                "source_node": curr_id, 
+                "target_node": next_id,
+                "label": 1 # Indique un chemin valide/optimal
+            })
+            
+            if len(edges_list) % 10000 == 0:
+                print(f"Progression : {len(edges_list)}/{target_count}")
     except:
         continue
 
@@ -48,4 +58,4 @@ for j_start, id_start in j_to_id.items():
 df_edges = pd.DataFrame(edges_list)
 df_edges.to_csv("../datasets/graph_edges.csv", index=False)
 
-print(f"Succès ! {len(edges_list)} arêtes réelles générées.")
+print(f"Succès ! Dataset de {len(edges_list)} arêtes prêt pour l'IA.")
